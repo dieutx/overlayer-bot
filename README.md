@@ -31,17 +31,24 @@ src/
 npm install
 ```
 
-Khuyến nghị dùng dotenvx để mã hoá secrets:
+Khuyến nghị dùng dotenvx để mã hoá private key/proxy:
 
 ```bash
 cp .env.example .env
 ```
 
-Thêm key/proxy vào `.env`:
+Điền private key và proxy vào `.env`:
 
 ```env
 PRIVATE_KEYS=0x_private_key_1,0x_private_key_2
 PROXIES=ip:port:user:pass,ip:port
+```
+
+Chạy không proxy qua mạng local:
+
+```env
+PRIVATE_KEYS=0x_private_key_1,0x_private_key_2
+PROXIES=
 ```
 
 Mã hoá `.env`:
@@ -52,19 +59,23 @@ npm run secrets:encrypt
 
 Giữ `.env.keys` ở máy chạy bot, không commit file này.
 
-Fallback nếu không dùng dotenvx: tạo `pv.txt`:
+Fallback nếu không dùng dotenvx:
+
+Tạo `pv.txt` để điền private key, mỗi dòng một key:
 
 ```text
 0x_private_key_1
 0x_private_key_2
 ```
 
-Tuỳ chọn tạo `proxy.txt`:
+Tuỳ chọn tạo `proxy.txt`, mỗi dòng một proxy:
 
 ```text
 ip:port:user:pass
 ip:port
 ```
+
+Không có proxy thì không cần tạo `proxy.txt`, hoặc để file rỗng. Bot sẽ chạy trực tiếp qua mạng local.
 
 Tuỳ chọn tạo `.env`:
 
