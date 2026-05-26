@@ -77,6 +77,19 @@ The script will:
 2. Select a working Sepolia RPC endpoint.
 3. Fetch or scale daily tasks.
 4. Process each wallet sequentially, executing tasks randomly, rotating proxies on failure, and immediately logging progress to `progress.json`.
+---
+
+## Support & Tips
+
+If this bot has helped you automate tasks or scale your research, feel free to support further development!
+
+<a href="https://nowpayments.io/donation?api_key=c0df45b8-76ae-42f2-b09e-861973bd4794" target="_blank" rel="noreferrer noopener">
+    <img src="https://nowpayments.io/images/embeds/donation-button-black.svg" alt="Crypto donation button by NOWPayments">
+</a>
+
+Direct Link: [Donate via NOWPayments](https://nowpayments.io/donation/ravi)
+
+*(Note: GitHub sanitizes raw iframe widgets for security reasons, so please use the button or direct link above)*
 
 ---
 
