@@ -1,0 +1,21 @@
+{
+  "name": "overlayer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "^25.9.1",
+    "dotenv": "^17.4.2",
+    "ethers": "^6.16.0",
+    "https-proxy-agent": "^9.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3",
+    "undici": "^8.3.0"
+  }
+}
