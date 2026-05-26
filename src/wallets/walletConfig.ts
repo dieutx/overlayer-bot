@@ -14,7 +14,7 @@ export function normalizePrivateKey(privateKey: string): string {
 export function buildWalletConfigs(privateKeys: string[], proxies: string[]): WalletConfig[] {
     const walletConfigs = privateKeys.map((pk, index) => ({
         pk: normalizePrivateKey(pk),
-        proxyStr: proxies[index] || proxies[index % proxies.length],
+        proxyStr: proxies[index]?.trim() || undefined,
         nextPk: normalizePrivateKey(privateKeys[(index + 1) % privateKeys.length])
     }));
 

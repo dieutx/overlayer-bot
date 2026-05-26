@@ -2,6 +2,7 @@ node_modules/
 dist/
 pv.txt
 proxy.txt
+prx.txt
 progress.json
 .env
 .env.*

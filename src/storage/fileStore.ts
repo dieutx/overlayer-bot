@@ -10,6 +10,16 @@ export function readLines(filePath: string): string[] {
         .filter(line => line.length > 0);
 }
 
+export function readMappedLines(filePath: string): string[] {
+    if (!fs.existsSync(filePath)) return [];
+
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const lines = content.split(/\r?\n/);
+    if (lines[lines.length - 1] === '') lines.pop();
+
+    return lines.map(line => line.trim());
+}
+
 export function readJsonFile<T>(filePath: string, fallback: T): T {
     try {
         if (!fs.existsSync(filePath)) return fallback;
