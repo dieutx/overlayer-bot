@@ -16,15 +16,18 @@ export async function getWorkingRpc(rpcs = RPCS): Promise<string> {
     console.log('Testing RPCs for a working connection...');
 
     for (const rpc of rpcs) {
+        let provider: JsonRpcProvider | undefined;
         try {
             const fetchReq = new FetchRequest(rpc);
             fetchReq.timeout = 10000;
-            const provider = new JsonRpcProvider(fetchReq, undefined, { staticNetwork: true });
+            provider = new JsonRpcProvider(fetchReq, undefined, { staticNetwork: true });
             const block = await provider.getBlockNumber();
             console.log(`[RPC OK] ${rpc} (Block: ${block})`);
             return rpc;
         } catch {
             console.log(`[RPC Failed] ${rpc}`);
+        } finally {
+            provider?.destroy();
         }
     }
 
