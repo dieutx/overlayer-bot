@@ -24,11 +24,16 @@ A production-grade, Sybil-proof automation bot for the **Overlayer** protocol on
 
 ```
 .
-├── api.ts              # Overlayer REST API endpoints & signature logic
-├── constants.ts        # Contract ABIs and Sepolia Addresses
-├── index.ts            # Main coordinator and entrypoint
-├── runner.ts           # Execution pipeline for individual wallets
-├── sybil.ts            # Sybil protection and proxy helpers
+├── src/
+│   ├── api/            # Overlayer REST API client
+│   ├── blockchain/     # Contract addresses and ABIs
+│   ├── config/         # Runtime paths and RPC selection
+│   ├── runner/         # Per-wallet task execution pipeline
+│   ├── storage/        # File and progress persistence
+│   ├── tasks/          # Task fetching, fallback, and cache handling
+│   ├── utils/          # Randomization, proxy, and user-agent helpers
+│   ├── wallets/        # Wallet config and address helpers
+│   └── index.ts        # Main coordinator and entrypoint
 ├── pv.txt              # Private keys config (one per line, gitignored)
 ├── proxy.txt           # Proxy config (one per line, gitignored)
 ├── progress.json       # Real-time task progress cache (gitignored)
@@ -67,9 +72,9 @@ Create the configuration files in the root folder:
 
 ## Running the Bot
 
-Run the coordinator script using `ts-node`:
+Run the coordinator script:
 ```bash
-npx ts-node index.ts
+npm start
 ```
 
 The script will:
@@ -77,6 +82,11 @@ The script will:
 2. Select a working Sepolia RPC endpoint.
 3. Fetch or scale daily tasks.
 4. Process each wallet sequentially, executing tasks randomly, rotating proxies on failure, and immediately logging progress to `progress.json`.
+
+To compile TypeScript without running the bot:
+```bash
+npm run typecheck
+```
 ---
 
 ## Support & Tips

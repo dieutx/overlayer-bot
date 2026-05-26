@@ -1,10 +1,12 @@
 {
-  "name": "overlayer",
+  "name": "overlayer-daily-tasks-modular",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Modular Overlayer daily task automation bot",
+  "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "ts-node src/index.ts",
+    "build": "tsc --project tsconfig.json",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",

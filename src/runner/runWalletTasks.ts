@@ -1,8 +1,9 @@
 import { JsonRpcProvider, FetchRequest, Wallet, Contract, parseUnits, parseEther, formatEther, MaxUint256, hexlify, zeroPadValue } from "ethers";
 import { HttpsProxyAgent } from "https-proxy-agent";
-import { ADDR, ERC20_ABI, MINT_ABI, STAKE_ABI, FAUCET_ABI, OFT_ABI, LZ_DST_EID } from "./constants";
-import { randomSleep, randomJitterAmount, formatProxyString, shuffleArray } from "./sybil";
-import { DailyTask } from "./api";
+import { ADDR, ERC20_ABI, MINT_ABI, STAKE_ABI, FAUCET_ABI, OFT_ABI, LZ_DST_EID } from '../blockchain/contracts';
+import { DailyTask } from '../api/overlayerClient';
+import { formatProxyString } from '../utils/proxy';
+import { randomJitterAmount, randomSleep, shuffleArray } from '../utils/random';
 
 // ANSI colors
 const C = {
