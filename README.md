@@ -1,5 +1,8 @@
 # Overlayer Daily Tasks Automation Bot
 
+> [!IMPORTANT]
+> **Educational & Research Purpose Only**: This repository is created strictly for **educational, academic, and research purposes**. It is designed as a proof-of-concept to study Web3 automated interactions, programmatic transaction flows, and decentralized network behaviors on the Sepolia testnet. It is not intended for commercial use or any activity that violates third-party terms of service. The authors are not responsible for any misuse, account bans, or restrictions. Use of this codebase is entirely at your own risk.
+
 A production-grade, Sybil-proof automation bot for the **Overlayer** protocol on the Ethereum Sepolia testnet. It automates daily active tasks—including Mint, Stake, Send, Receive, and Bridge—for multiple wallets with built-in proxy rotation, random delays, crash-resilient progression, and burner-routing for the Receive task.
 
 ## Key Features
@@ -79,6 +82,12 @@ The script will:
 
 ## Safety & Security Disclaimer
 
-- **Never share your `pv.txt` or `proxy.txt`** files. They contain sensitive credentials.
+- **Never share your `pv.txt` or `proxy.txt`** files. They contain sensitive credentials and must be protected.
 - Keep `.gitignore` updated to block raw private keys and proxies from git commits.
-- This codebase is meant for testnet/development automation purposes.
+- This codebase is meant for testnet/development automation and local simulation purposes.
+
+---
+
+## Educational License & Terms of Use
+
+This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
