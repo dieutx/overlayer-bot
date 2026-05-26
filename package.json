@@ -4,20 +4,25 @@
   "description": "Modular Overlayer daily task automation bot",
   "main": "dist/index.js",
   "scripts": {
-    "start": "ts-node src/index.ts",
+    "start": "dotenvx run --ignore=MISSING_ENV_FILE -f .env.example -f .env -- ts-node src/index.ts",
+    "start:plain": "ts-node src/index.ts",
     "build": "tsc --project tsconfig.json",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "secrets:encrypt": "dotenvx encrypt",
+    "secrets:decrypt": "dotenvx decrypt"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@types/node": "^25.9.1",
-    "dotenv": "^17.4.2",
     "ethers": "^6.16.0",
     "https-proxy-agent": "^9.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
     "undici": "^8.3.0"
+  },
+  "devDependencies": {
+    "@dotenvx/dotenvx": "^1.69.1"
   }
 }

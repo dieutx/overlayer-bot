@@ -6,5 +6,6 @@ progress.json
 .env
 .env.*
 !.env.example
+.env.keys
 *.log
 task-list.txt

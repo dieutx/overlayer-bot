@@ -1,8 +1,6 @@
 import { FetchRequest, JsonRpcProvider } from 'ethers';
 
-export const RPCS = [
-    process.env.RPC || 'https://eth-sepolia.g.alchemy.com/v2/s7fdCDCUVr0QNlQf6cSC94ogwjXw0g29',
-    'https://api.web3auth.io/infura-service/v1/0xaa36a7/BBxWMjyduQj8NuN7Fu1luxCY-YCQl-CSRf9R5LtrjFKWbyGstCpjSDhyR3jD_4T2RKP-liJCyCG2GCrCdZSor_4',
+const DEFAULT_PUBLIC_RPCS = [
     'https://rpc.ankr.com/eth_sepolia',
     'https://sepolia.rpc.sentio.xyz',
     'https://rpc.sepolia.ethpandaops.io',
@@ -10,6 +8,11 @@ export const RPCS = [
     'https://eth-sepolia.api.onfinality.io/public',
     'https://sepolia.drpc.org',
     'https://1rpc.io/sepolia'
+];
+
+export const RPCS = [
+    ...(process.env.RPC ? [process.env.RPC] : []),
+    ...DEFAULT_PUBLIC_RPCS
 ];
 
 export async function getWorkingRpc(rpcs = RPCS): Promise<string> {

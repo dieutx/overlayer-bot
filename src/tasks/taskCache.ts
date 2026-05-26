@@ -1,5 +1,6 @@
 import { DailyTask } from '../api/overlayerClient';
 import { readJsonAfterFirstBrace, writeJsonFile } from '../storage/fileStore';
+import { errorMessage } from '../utils/sanitize';
 
 interface TaskCache {
     success: boolean;
@@ -34,7 +35,7 @@ export function updateTaskCache(filePath: string, fetchedTasks: DailyTask[]): vo
         writeJsonFile(filePath, currentList);
         console.log(`Updated task-list.txt with ${fetchedTasks.length} tasks.`);
     } catch (e: any) {
-        console.log(`Could not auto-update task-list.txt: ${e.message}`);
+        console.log(`Could not auto-update task-list.txt: ${errorMessage(e)}`);
     }
 }
 

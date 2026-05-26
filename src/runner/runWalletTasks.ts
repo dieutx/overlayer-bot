@@ -2,8 +2,9 @@ import { JsonRpcProvider, FetchRequest, Wallet, Contract, parseUnits, parseEther
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { ADDR, ERC20_ABI, MINT_ABI, STAKE_ABI, FAUCET_ABI, OFT_ABI, LZ_DST_EID } from '../blockchain/contracts';
 import { DailyTask } from '../api/overlayerClient';
-import { formatProxyString } from '../utils/proxy';
+import { formatProxyString, maskProxyString } from '../utils/proxy';
 import { randomJitterAmount, randomSleep, shuffleArray } from '../utils/random';
+import { errorMessage } from '../utils/sanitize';
 
 // ANSI colors
 const C = {
@@ -40,7 +41,7 @@ export async function runWalletTasks(
     let wallet = new Wallet(privateKey.trim(), provider);
     const addr = wallet.address;
     console.log(`\n${C.MAG}═══════ ${addr} ═══════${C.RST}`);
-    console.log(`Proxy: ${currentProxy ? currentProxy : 'NONE'}`);
+    console.log(`Proxy: ${maskProxyString(currentProxy)}`);
 
     // --- BUILD TASK INDEX ---
     // Ignore API's t.completed since it belongs to the master wallet. Use local progress instead.
@@ -131,7 +132,7 @@ export async function runWalletTasks(
             }
             attempts++;
         }
-        console.log(`[PROXY ROTATION] Rotating from ${oldProxy || 'NONE'} to ${currentProxy}`);
+        console.log(`[PROXY ROTATION] Rotating from ${maskProxyString(oldProxy)} to ${maskProxyString(currentProxy)}`);
         
         provider = createProvider(rpcUrl, currentProxy);
         wallet = new Wallet(privateKey.trim(), provider);
@@ -152,7 +153,7 @@ export async function runWalletTasks(
                 return await fn();
             } catch (err: any) {
                 lastError = err;
-                const errMsg = err.message || String(err);
+                const errMsg = errorMessage(err);
                 const isNetworkError = 
                     errMsg.includes("fetch failed") ||
                     errMsg.includes("timeout") ||
@@ -184,7 +185,7 @@ export async function runWalletTasks(
         try {
             currentBal = await runWithProxyRetry(() => tokenContract.balanceOf(addr));
         } catch (e: any) {
-            console.log(`${C.RED}⚠️ Failed to get initial ${label} balance: ${e.message}${C.RST}`);
+            console.log(`${C.RED}⚠️ Failed to get initial ${label} balance: ${errorMessage(e)}${C.RST}`);
             currentBal = requiredAmount; // skip faucet if we can't get balance
         }
 
@@ -195,13 +196,13 @@ export async function runWalletTasks(
                 const tx = await runWithProxyRetry(() => faucet.mint(tokenAddr, addr, parseUnits('10000', 6)));
                 await runWithProxyRetry(() => tx.wait()); txCount++;
             } catch(e: any) { 
-                console.log(`${C.RED}⚠️ ${label} faucet error: ${e.message?.slice(0,80)}${C.RST}`);
+                console.log(`${C.RED}⚠️ ${label} faucet error: ${errorMessage(e, 80)}${C.RST}`);
                 break; // escape loop if faucet breaks
             }
             try {
                 currentBal = await runWithProxyRetry(() => tokenContract.balanceOf(addr));
             } catch (e: any) {
-                console.log(`${C.RED}⚠️ Failed to get ${label} balance after faucet: ${e.message}${C.RST}`);
+                console.log(`${C.RED}⚠️ Failed to get ${label} balance after faucet: ${errorMessage(e)}${C.RST}`);
                 break;
             }
             await randomSleep(2000, 4000);
@@ -257,7 +258,7 @@ export async function runWalletTasks(
                     }
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
-                    console.error(`${C.RED}❌ Error minting C+: ${e.message}${C.RST}`);
+                    console.error(`${C.RED}❌ Error minting C+: ${errorMessage(e)}${C.RST}`);
                 }
             });
         }
@@ -278,7 +279,7 @@ export async function runWalletTasks(
                     }
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
-                    console.error(`${C.RED}❌ Error minting T+: ${e.message}${C.RST}`);
+                    console.error(`${C.RED}❌ Error minting T+: ${errorMessage(e)}${C.RST}`);
                 }
             });
         }
@@ -308,7 +309,7 @@ export async function runWalletTasks(
                     }
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
-                    console.error(`${C.RED}❌ Error staking C+: ${e.message}${C.RST}`);
+                    console.error(`${C.RED}❌ Error staking C+: ${errorMessage(e)}${C.RST}`);
                 }
             });
         }
@@ -330,7 +331,7 @@ export async function runWalletTasks(
                     }
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
-                    console.error(`${C.RED}❌ Error staking T+: ${e.message}${C.RST}`);
+                    console.error(`${C.RED}❌ Error staking T+: ${errorMessage(e)}${C.RST}`);
                 }
             });
         }
@@ -352,7 +353,7 @@ export async function runWalletTasks(
                     }
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
-                    console.error(`${C.RED}❌ Error sending C+: ${e.message}${C.RST}`);
+                    console.error(`${C.RED}❌ Error sending C+: ${errorMessage(e)}${C.RST}`);
                 }
             });
         }
@@ -374,7 +375,7 @@ export async function runWalletTasks(
                     }
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
-                    console.error(`${C.RED}❌ Error sending T+: ${e.message}${C.RST}`);
+                    console.error(`${C.RED}❌ Error sending T+: ${errorMessage(e)}${C.RST}`);
                 }
             });
         }
@@ -429,7 +430,7 @@ export async function runWalletTasks(
                             }
                         }
                     } catch (ethErr: any) {
-                        console.log(`${C.YLW}⚠️ Failed to return leftover ETH from burner: ${ethErr.message}${C.RST}`);
+                        console.log(`${C.YLW}⚠️ Failed to return leftover ETH from burner: ${errorMessage(ethErr)}${C.RST}`);
                     }
                     
                     if (usdcReceiveTask) {
@@ -438,7 +439,7 @@ export async function runWalletTasks(
                     }
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
-                    console.error(`${C.RED}❌ Error receiving C+: ${e.message}${C.RST}`);
+                    console.error(`${C.RED}❌ Error receiving C+: ${errorMessage(e)}${C.RST}`);
                 }
             });
         }
@@ -493,7 +494,7 @@ export async function runWalletTasks(
                             }
                         }
                     } catch (ethErr: any) {
-                        console.log(`${C.YLW}⚠️ Failed to return leftover ETH from burner: ${ethErr.message}${C.RST}`);
+                        console.log(`${C.YLW}⚠️ Failed to return leftover ETH from burner: ${errorMessage(ethErr)}${C.RST}`);
                     }
                     
                     if (usdtReceiveTask) {
@@ -502,7 +503,7 @@ export async function runWalletTasks(
                     }
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
-                    console.error(`${C.RED}❌ Error receiving T+: ${e.message}${C.RST}`);
+                    console.error(`${C.RED}❌ Error receiving T+: ${errorMessage(e)}${C.RST}`);
                 }
             });
         }
@@ -532,7 +533,7 @@ export async function runWalletTasks(
                         if (onTaskCompleted) onTaskCompleted(usdcBridgeTask.id);
                     }
                 } catch(e: any) { 
-                    console.log(`${C.RED}⚠️ C+ Bridge failed: ${e.message?.slice(0, 100)}${C.RST}`); 
+                    console.log(`${C.RED}⚠️ C+ Bridge failed: ${errorMessage(e, 100)}${C.RST}`); 
                 }
                 await randomSleep(2000, 5000);
             });
@@ -563,7 +564,7 @@ export async function runWalletTasks(
                         if (onTaskCompleted) onTaskCompleted(usdtBridgeTask.id);
                     }
                 } catch(e: any) { 
-                    console.log(`${C.RED}⚠️ T+ Bridge failed: ${e.message?.slice(0, 100)}${C.RST}`); 
+                    console.log(`${C.RED}⚠️ T+ Bridge failed: ${errorMessage(e, 100)}${C.RST}`); 
                 }
                 await randomSleep(2000, 5000);
             });
@@ -591,7 +592,7 @@ export async function runWalletTasks(
                     await randomSleep(1500, 3000);
                 } catch (e: any) {
                     failures++;
-                    console.error(`${C.RED}⚠️ Dummy tx ${i+1} failed: ${e.message?.slice(0, 150)}${C.RST}`);
+                    console.error(`${C.RED}⚠️ Dummy tx ${i+1} failed: ${errorMessage(e, 150)}${C.RST}`);
                     if (failures >= 5) {
                         console.error(`${C.RED}Too many dummy tx failures (${failures}). Skipping remaining.${C.RST}`);
                         dummySuccess = false;
@@ -612,7 +613,7 @@ export async function runWalletTasks(
         return completedThisRun;
 
     } catch (e: any) {
-        console.error(`${C.RED}❌ Error in wallet ${addr}:${C.RST}`, e.message);
+        console.error(`${C.RED}❌ Error in wallet ${addr}:${C.RST}`, errorMessage(e));
         return completedThisRun;
     }
 }

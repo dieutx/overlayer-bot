@@ -1,15 +1,15 @@
-import 'dotenv/config';
 import { Wallet } from 'ethers';
 import { getPoints, requestOgMint, submitGdprConsent } from './api/overlayerClient';
 import { getWorkingRpc } from './config/rpcs';
 import { FILES } from './config/paths';
 import { runWalletTasks } from './runner/runWalletTasks';
-import { readLines } from './storage/fileStore';
+import { loadPrivateKeys, loadProxies } from './config/secrets';
 import { ProgressStore } from './storage/progressStore';
 import { loadDailyTasks } from './tasks/taskService';
 import { randomSleep } from './utils/random';
 import { formatProxyString } from './utils/proxy';
 import { buildWalletConfigs, getAddress } from './wallets/walletConfig';
+import { errorMessage } from './utils/sanitize';
 
 async function setupWalletProfile(address: string, privateKey: string, proxyUrl?: string): Promise<void> {
     try {
@@ -19,18 +19,18 @@ async function setupWalletProfile(address: string, privateKey: string, proxyUrl?
         const signature = await new Wallet(privateKey).signMessage(message);
         await requestOgMint(address, signature, message, proxyUrl);
     } catch (e: any) {
-        console.log(`[${address}] OG Mint / GDPR setup error: ${e.message}`);
+        console.log(`[${address}] OG Mint / GDPR setup error: ${errorMessage(e)}`);
     }
 }
 
 async function main(): Promise<void> {
     console.log('🚀 Starting Ultimate Overlayer Sybil-Proof Bot...');
 
-    const privateKeys = readLines(FILES.privateKeys);
-    const proxies = readLines(FILES.proxies);
+    const privateKeys = loadPrivateKeys();
+    const proxies = loadProxies();
 
     if (privateKeys.length === 0) {
-        console.error('❌ No private keys found in pv.txt! Exiting.');
+        console.error('❌ No private keys found in PRIVATE_KEYS or pv.txt! Exiting.');
         process.exit(1);
     }
 
