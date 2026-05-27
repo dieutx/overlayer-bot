@@ -33,6 +33,11 @@ function createFetchRequest(url: string, proxyUrl?: string): FetchRequest {
     return req;
 }
 
+function formatAuthHeader(token: string): string {
+    const trimmed = token.trim();
+    return /^Bearer\s+/i.test(trimmed) ? trimmed : `Bearer ${trimmed}`;
+}
+
 export async function fetchDailyTasks(address: string, token: string, proxyUrl?: string): Promise<DailyTask[]> {
     const todayStr = new Date().toISOString().split('T')[0];
     const req = createFetchRequest(
@@ -40,7 +45,7 @@ export async function fetchDailyTasks(address: string, token: string, proxyUrl?:
         proxyUrl
     );
 
-    req.setHeader('Authorization', `Bearer ${token}`);
+    req.setHeader('Authorization', formatAuthHeader(token));
     req.setHeader('Origin', 'https://testnet.overlayer.fi');
 
     const res = await req.send();

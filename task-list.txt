@@ -1,9 +1,5 @@
 {
   "success": true,
-  "timestamp": "2026-05-27T01:10:37.991Z",
-  "startDate": "2026-05-27",
-  "endDate": "2026-05-27",
-  "address": "0x0000000000000000000000000000000000000000",
   "tasks": [
     {
       "id": "usdt_mint_eth-sepolia_10_2026-05-25",
@@ -168,9 +164,9 @@
       "points": 100,
       "active": true,
       "startDate": "2026-05-27",
-      "description": "Mint at least 392 T+ on ETH Sep",
+      "description": "Mint at least 392 T+ on Ethereum Sepolia",
       "product": "usdt",
-      "completed": false
+      "completed": true
     },
     {
       "id": "usdc_stake_eth-sepolia_209_2026-05-27",
@@ -181,9 +177,9 @@
       "points": 150,
       "active": true,
       "startDate": "2026-05-27",
-      "description": "Stake at least 209 C+ on ETH Sep",
+      "description": "Stake at least 209 C+ on Ethereum Sepolia",
       "product": "usdc",
-      "completed": false
+      "completed": true
     },
     {
       "id": "usdc_bridge_eth-sepolia_373_2026-05-27",
@@ -194,9 +190,9 @@
       "points": 150,
       "active": true,
       "startDate": "2026-05-27",
-      "description": "Bridge at least 373 C+ from ETH Sep via OFT",
+      "description": "Bridge at least 373 C+ from Ethereum Sepolia via OFT",
       "product": "usdc",
-      "completed": false
+      "completed": true
     },
     {
       "id": "usdc_send_eth-sepolia_217_2026-05-27",
@@ -207,9 +203,9 @@
       "points": 150,
       "active": true,
       "startDate": "2026-05-27",
-      "description": "Send at least 217 C+ on ETH Sep",
+      "description": "Send at least 217 C+ on Ethereum Sepolia",
       "product": "usdc",
-      "completed": false
+      "completed": true
     },
     {
       "id": "usdc_receive_eth-sepolia_142_2026-05-27",
@@ -220,9 +216,9 @@
       "points": 200,
       "active": true,
       "startDate": "2026-05-27",
-      "description": "Receive at least 142 C+ on ETH Sep",
+      "description": "Receive at least 142 C+ on Ethereum Sepolia",
       "product": "usdc",
-      "completed": false
+      "completed": true
     },
     {
       "id": "transaction_eth-sepolia_45_2026-05-27",
@@ -233,9 +229,9 @@
       "points": 1500,
       "active": true,
       "startDate": "2026-05-27",
-      "description": "Make at least 45 tx (mint, stake, or bridge) on ETH Sep",
-      "product": "",
-      "completed": false
+      "description": "Make at least 45 transactions (mint, stake, or bridge) on Ethereum Sepolia",
+      "completed": true
     }
-  ]
+  ],
+  "timestamp": "2026-05-27T02:05:29.176Z"
 }
