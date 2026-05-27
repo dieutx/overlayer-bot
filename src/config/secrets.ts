@@ -35,6 +35,11 @@ export function loadProxies(): string[] {
     return readMappedLines(FILES.legacyProxies);
 }
 
+export function loadGlobalProxy(): string | undefined {
+    const proxy = process.env.GLOBAL_PROXY?.trim();
+    return proxy || undefined;
+}
+
 export function loadWalletConcurrency(): number {
     const raw = process.env.WALLET_CONCURRENCY || '1';
     const parsed = Number.parseInt(raw, 10);

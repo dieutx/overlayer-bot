@@ -104,6 +104,16 @@ TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 ```
 
+Fetch daily tasks từ API dùng:
+
+```env
+GLOBAL_AUTH_TOKEN=
+GLOBAL_AUTH_ADDRESS=
+GLOBAL_PROXY=
+```
+
+Nếu `GLOBAL_PROXY` trống, bot dùng proxy của ví đầu tiên. Nếu ví đầu tiên cũng không có proxy, bot gọi API qua local network.
+
 Cron chạy mỗi ngày trong khoảng 07:00-08:00 giờ Hà Nội:
 
 ```cron

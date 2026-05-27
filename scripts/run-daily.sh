@@ -17,7 +17,7 @@ sleep "$DELAY_SECONDS"
 
 cd "$ROOT_DIR" || exit 1
 
-WALLET_CONCURRENCY="${WALLET_CONCURRENCY:-2}" npm start >> "$LOG_FILE" 2>&1
+WALLET_CONCURRENCY="${WALLET_CONCURRENCY:-4}" npm start >> "$LOG_FILE" 2>&1
 EXIT_CODE=$?
 
 {

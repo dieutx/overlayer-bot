@@ -3,7 +3,7 @@ import { getPoints, requestOgMint, submitGdprConsent } from './api/overlayerClie
 import { getWorkingRpc } from './config/rpcs';
 import { FILES } from './config/paths';
 import { runWalletTasks } from './runner/runWalletTasks';
-import { loadPrivateKeys, loadProxies, loadWalletConcurrency } from './config/secrets';
+import { loadGlobalProxy, loadPrivateKeys, loadProxies, loadWalletConcurrency } from './config/secrets';
 import { ProgressStore } from './storage/progressStore';
 import { loadDailyTasks } from './tasks/taskService';
 import { randomSleep } from './utils/random';
@@ -28,6 +28,7 @@ async function main(): Promise<void> {
 
     const privateKeys = loadPrivateKeys();
     const proxies = loadProxies();
+    const configuredGlobalProxy = loadGlobalProxy();
     const walletConcurrency = loadWalletConcurrency();
 
     if (privateKeys.length === 0) {
@@ -40,7 +41,8 @@ async function main(): Promise<void> {
 
     const walletConfigs = buildWalletConfigs(privateKeys, proxies);
     const workingRpc = await getWorkingRpc();
-    const globalProxy = walletConfigs[0]?.proxyStr ? formatProxyString(walletConfigs[0].proxyStr) : undefined;
+    const globalProxySource = configuredGlobalProxy || walletConfigs[0]?.proxyStr;
+    const globalProxy = globalProxySource ? formatProxyString(globalProxySource) : undefined;
     const tasks = await loadDailyTasks(globalProxy);
     const todayStr = new Date().toISOString().split('T')[0];
     const progressStore = new ProgressStore(FILES.progress);
