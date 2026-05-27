@@ -32,13 +32,22 @@ function buildReport() {
     const today = new Date().toISOString().slice(0, 10);
     const wallets = readWalletAddresses();
     const progress = readProgress();
+    const logText = logPath && fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
     const logTail = logPath && fs.existsSync(logPath)
-        ? fs.readFileSync(logPath, 'utf8').split(/\r?\n/).filter(Boolean).slice(-12).join('\n')
+        ? logText.split(/\r?\n/).filter(Boolean).slice(-12).join('\n')
         : '';
+    const taskSource = logText.includes('Loaded') && logText.includes('tasks from API')
+        ? 'API'
+        : logText.includes('API failed')
+            ? 'Fallback (API failed)'
+            : logText.includes('fallback task-list')
+                ? 'Fallback task-list'
+                : 'Unknown';
 
     const lines = [
         `Overlayer daily report - ${today}`,
         `Status: ${exitCode === 0 ? 'OK' : `FAILED (${exitCode})`}`,
+        `Task source: ${taskSource}`,
         `Wallets: ${wallets.length}`,
         ''
     ];

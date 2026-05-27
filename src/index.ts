@@ -7,7 +7,7 @@ import { loadGlobalProxy, loadPrivateKeys, loadProxies, loadWalletConcurrency } 
 import { ProgressStore } from './storage/progressStore';
 import { loadDailyTasks } from './tasks/taskService';
 import { randomSleep } from './utils/random';
-import { formatProxyString } from './utils/proxy';
+import { formatProxyString, maskProxyString } from './utils/proxy';
 import { buildWalletConfigs, getAddress } from './wallets/walletConfig';
 import { errorMessage } from './utils/sanitize';
 
@@ -43,6 +43,7 @@ async function main(): Promise<void> {
     const workingRpc = await getWorkingRpc();
     const globalProxySource = configuredGlobalProxy || walletConfigs[0]?.proxyStr;
     const globalProxy = globalProxySource ? formatProxyString(globalProxySource) : undefined;
+    console.log(`Daily task API proxy: ${maskProxyString(globalProxySource)}`);
     const tasks = await loadDailyTasks(globalProxy);
     const todayStr = new Date().toISOString().split('T')[0];
     const progressStore = new ProgressStore(FILES.progress);
