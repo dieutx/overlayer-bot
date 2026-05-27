@@ -9,4 +9,5 @@ progress.json
 !.env.example
 .env.keys
 *.log
+logs/
 task-list.txt

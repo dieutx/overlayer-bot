@@ -91,6 +91,26 @@ RPC=
 npm start
 ```
 
+Chạy nhiều ví song song:
+
+```bash
+WALLET_CONCURRENCY=2 npm start
+```
+
+Telegram report dùng env:
+
+```env
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+```
+
+Cron chạy mỗi ngày trong khoảng 07:00-08:00 giờ Hà Nội:
+
+```cron
+CRON_TZ=Asia/Ho_Chi_Minh
+0 7 * * * /root/claude/overlayer-daily-tasks-modular/scripts/run-daily.sh
+```
+
 Kiểm tra TypeScript:
 
 ```bash
