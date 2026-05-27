@@ -24,6 +24,6 @@ EXIT_CODE=$?
   echo "[$(TZ=Asia/Ho_Chi_Minh date '+%F %T %Z')] Scheduled run finished with exit code $EXIT_CODE"
 } >> "$LOG_FILE"
 
-dotenvx run --ignore=MISSING_ENV_FILE -f .env.example -f .env -- node scripts/send-telegram-report.js "$LOG_FILE" "$EXIT_CODE" >> "$LOG_FILE" 2>&1
+dotenvx run --ignore=MISSING_ENV_FILE -f .env -f .env.example -- node scripts/send-telegram-report.js "$LOG_FILE" "$EXIT_CODE" >> "$LOG_FILE" 2>&1
 
 exit "$EXIT_CODE"
