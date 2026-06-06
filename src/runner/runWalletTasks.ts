@@ -2,6 +2,7 @@ import { JsonRpcProvider, FetchRequest, Wallet, Contract, parseUnits, parseEther
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { ADDR, ERC20_ABI, MINT_ABI, STAKE_ABI, FAUCET_ABI, OFT_ABI, LZ_DST_EID } from '../blockchain/contracts';
 import { DailyTask } from '../api/overlayerClient';
+import { calculateDummyTxCount, isDummyTxTopUpOnlyMode } from './dummyTxPlanner';
 import { formatProxyString, maskProxyString } from '../utils/proxy';
 import { randomJitterAmount, randomSleep, shuffleArray } from '../utils/random';
 import { errorMessage } from '../utils/sanitize';
@@ -26,6 +27,15 @@ function createProvider(rpcUrl: string, proxyStr?: string): JsonRpcProvider {
     return new JsonRpcProvider(fetchReq, undefined, { staticNetwork: true });
 }
 
+function destroyProvider(provider?: JsonRpcProvider): void {
+    if (!provider) return;
+    try {
+        provider.destroy();
+    } catch {
+        // Ignore provider shutdown errors during cleanup.
+    }
+}
+
 export async function runWalletTasks(
     privateKey: string,
     proxyStr: string | undefined,
@@ -45,9 +55,12 @@ export async function runWalletTasks(
 
     // --- BUILD TASK INDEX ---
     // Ignore API's t.completed since it belongs to the master wallet. Use local progress instead.
+    const dummyTopUpOnly = isDummyTxTopUpOnlyMode();
     const activeTasks = tasks.filter(t => t.active);
     const completedTasks = activeTasks.filter(t => completedTaskIds.includes(t.id));
-    const pendingTasks = activeTasks.filter(t => !completedTaskIds.includes(t.id));
+    const pendingTasks = dummyTopUpOnly
+        ? activeTasks.filter(t => t.type === 'transaction')
+        : activeTasks.filter(t => !completedTaskIds.includes(t.id));
     
     let totalTargetTx = 0;
     
@@ -79,6 +92,9 @@ export async function runWalletTasks(
     console.log(`Total Active Tasks: ${activeTasks.length}`);
     console.log(`Confirmed (Completed): ${C.GRN}${completedTasks.length}${C.RST}`);
     console.log(`Pending: ${C.YLW}${pendingTasks.length}${C.RST}`);
+    if (dummyTopUpOnly) {
+        console.log(`${C.YLW}Top-up mode: extra dummy tx only for already-completed wallets.${C.RST}`);
+    }
     
     if (pendingTasks.length > 0) {
         console.log(`\n${C.CYN}Pending Action Amounts:${C.RST}`);
@@ -123,6 +139,7 @@ export async function runWalletTasks(
     function rotateProxy() {
         if (allProxies.length === 0) return;
         const oldProxy = currentProxy;
+        const oldProvider = provider;
         let attempts = 0;
         while (attempts < 10) {
             const nextProxy = allProxies[Math.floor(Math.random() * allProxies.length)];
@@ -135,6 +152,7 @@ export async function runWalletTasks(
         console.log(`[PROXY ROTATION] Rotating from ${maskProxyString(oldProxy)} to ${maskProxyString(currentProxy)}`);
         
         provider = createProvider(rpcUrl, currentProxy);
+        destroyProvider(oldProvider);
         wallet = new Wallet(privateKey.trim(), provider);
         
         faucet = faucet.connect(wallet) as Contract;
@@ -394,8 +412,8 @@ export async function runWalletTasks(
                     let tx = await runWithProxyRetry(() => cPlus.transfer(burner.address, sendAmt));
                     await runWithProxyRetry(() => tx.wait()); txCount++;
                     
-                    const gasAmt = parseEther("0.0015");
-                    console.log(`Sending 0.0015 ETH to burner for gas...`);
+                    const gasAmt = parseEther("0.004");
+                    console.log(`Sending 0.004 ETH to burner for gas...`);
                     tx = await runWithProxyRetry(() => wallet.sendTransaction({
                         to: burner.address,
                         value: gasAmt
@@ -458,8 +476,8 @@ export async function runWalletTasks(
                     let tx = await runWithProxyRetry(() => tPlus.transfer(burner.address, sendAmt));
                     await runWithProxyRetry(() => tx.wait()); txCount++;
                     
-                    const gasAmt = parseEther("0.0015");
-                    console.log(`Sending 0.0015 ETH to burner for gas...`);
+                    const gasAmt = parseEther("0.004");
+                    console.log(`Sending 0.004 ETH to burner for gas...`);
                     tx = await runWithProxyRetry(() => wallet.sendTransaction({
                         to: burner.address,
                         value: gasAmt
@@ -577,10 +595,16 @@ export async function runWalletTasks(
         }
 
         // 9. EXTRA DUMMY TXS
-        // Add 2 extra transactions as a safeguard to ensure target transaction counts are always hit
-        const remaining = totalTargetTx > 0 ? (Math.max(0, totalTargetTx - txCount) + 2) : 0;
+        const remaining = calculateDummyTxCount({
+            totalTargetTx,
+            txCount,
+            topUpOnly: dummyTopUpOnly
+        });
         if (remaining > 0) {
-            console.log(`${C.YLW}Need ${remaining} more transactions to hit targets (including +2 safeguard)...${C.RST}`);
+            const message = dummyTopUpOnly
+                ? `Top-up mode: running ${remaining} extra dummy transactions...`
+                : `Need ${remaining} more transactions to hit targets (including random +6..10 extra)...`;
+            console.log(`${C.YLW}${message}${C.RST}`);
             let dummySuccess = true;
             let failures = 0;
             for (let i = 0; i < remaining; i++) {
@@ -615,5 +639,7 @@ export async function runWalletTasks(
     } catch (e: any) {
         console.error(`${C.RED}❌ Error in wallet ${addr}:${C.RST}`, errorMessage(e));
         return completedThisRun;
+    } finally {
+        destroyProvider(provider);
     }
 }

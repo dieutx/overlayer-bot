@@ -11,3 +11,6 @@ progress.json
 *.log
 logs/
 task-list.txt
+scripts/run-daily.sh
+scripts/send-telegram-report.js
+*.backup-*

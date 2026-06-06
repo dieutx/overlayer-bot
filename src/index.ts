@@ -3,6 +3,7 @@ import { getPoints, requestOgMint, submitGdprConsent } from './api/overlayerClie
 import { getWorkingRpc } from './config/rpcs';
 import { FILES } from './config/paths';
 import { runWalletTasks } from './runner/runWalletTasks';
+import { isDummyTxTopUpOnlyMode } from './runner/dummyTxPlanner';
 import { loadGlobalProxy, loadPrivateKeys, loadProxies, loadWalletConcurrency } from './config/secrets';
 import { ProgressStore } from './storage/progressStore';
 import { loadDailyTasks } from './tasks/taskService';
@@ -85,14 +86,17 @@ async function processWallet(params: ProcessWalletParams): Promise<void> {
     const currentAddr = getAddress(pk);
     const nextWalletAddr = getAddress(nextPk);
     const completedTaskIds = progressStore.getCompletedTaskIds(currentAddr, todayStr);
+    const dummyTopUpOnly = isDummyTxTopUpOnlyMode();
 
-    if (completedTaskIds.length >= tasks.length && tasks.length > 0) {
+    if (completedTaskIds.length >= tasks.length && tasks.length > 0 && !dummyTopUpOnly) {
         console.log(`\n⏭️  [${currentAddr}] All ${tasks.length} tasks completed today (${todayStr}). Skipping!`);
         return;
     }
 
     const formattedProxy = proxyStr ? formatProxyString(proxyStr) : undefined;
-    await setupWalletProfile(currentAddr, pk, formattedProxy);
+    if (!dummyTopUpOnly) {
+        await setupWalletProfile(currentAddr, pk, formattedProxy);
+    }
 
     await runWalletTasks(
         pk,

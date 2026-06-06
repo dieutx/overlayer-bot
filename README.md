@@ -1,145 +1,138 @@
-# Overlayer Daily Tasks Bot
+# Overlayer Sepolia Task Bot
 
-Bot TypeScript tự động chạy daily tasks Overlayer trên Ethereum Sepolia cho nhiều ví.
+TypeScript bot for running Overlayer daily on-chain tasks on Ethereum Sepolia across multiple wallets.
 
-## Bot Làm Gì
+The project is designed for server runs: it loads wallets from local secrets, fetches the latest Overlayer daily tasks when API auth is configured, executes the required Sepolia actions, records local progress, and rotates proxies when network failures happen.
 
-- Đọc private keys từ `pv.txt`.
-- Đọc proxy từ `proxy.txt` nếu có.
-- Tự chọn RPC Sepolia đang hoạt động.
-- Lấy daily tasks từ Overlayer API nếu có `GLOBAL_AUTH_TOKEN`, nếu không sẽ dùng `task-list.txt`.
-- Chạy các task on-chain: mint, stake, send, receive, bridge và dummy transactions.
-- Lưu tiến độ vào `progress.json` để chạy lại không làm trùng task đã xong.
+## Features
 
-## Cấu Trúc
+- Multi-wallet task execution with configurable concurrency.
+- Daily task loading from the Overlayer API with a local cache fallback.
+- Supported task actions: mint, stake, send, receive, bridge, and extra transaction top-ups.
+- Sepolia RPC fallback selection.
+- Optional wallet-to-proxy mapping and proxy rotation after network errors.
+- Local progress tracking to avoid repeating completed tasks in the same day.
+- dotenvx support for encrypted local environment files.
+
+## Project Layout
 
 ```text
 src/
-├── api/          # Overlayer API client
-├── blockchain/   # Contract addresses và ABIs
-├── config/       # RPC và đường dẫn file
-├── runner/       # Logic chạy task từng ví
-├── storage/      # Đọc/ghi file và progress
-├── tasks/        # Load/cache daily tasks
-├── utils/        # Proxy, random, user-agent
-└── wallets/      # Wallet helpers
+  api/          Overlayer API client
+  blockchain/   Contract addresses and ABIs
+  config/       Paths, RPCs, and secret loading
+  runner/       Per-wallet task execution
+  storage/      JSON and line-based local file storage
+  tasks/        Daily task cache handling
+  utils/        Proxy formatting, randomization, sanitization
+tests/          Unit tests for deterministic planning logic
 ```
 
-## Cài Đặt
+## Install
 
 ```bash
 npm install
 ```
 
-Khuyến nghị dùng dotenvx để mã hoá private key/proxy:
+## Configuration
+
+Copy the example environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Điền private key và proxy vào `.env`:
-
-```env
-PRIVATE_KEYS=0x_private_key_1,0x_private_key_2
-PROXIES=ip:port:user:pass,ip:port
-```
-
-Chạy không proxy qua mạng local:
-
-```env
-PRIVATE_KEYS=0x_private_key_1,0x_private_key_2
-PROXIES=
-```
-
-Mã hoá `.env`:
-
-```bash
-npm run secrets:encrypt
-```
-
-Giữ `.env.keys` ở máy chạy bot, không commit file này.
-
-Fallback nếu không dùng dotenvx:
-
-Tạo `pv.txt` để điền private key, mỗi dòng một key:
-
-```text
-0x_private_key_1
-0x_private_key_2
-```
-
-Tuỳ chọn tạo `proxy.txt`, mỗi dòng một proxy:
-
-```text
-ip:port:user:pass
-ip:port
-```
-
-Không có proxy thì không cần tạo `proxy.txt`, hoặc để file rỗng. Bot sẽ chạy trực tiếp qua mạng local.
-
-Tuỳ chọn tạo `.env`:
-
-```env
-GLOBAL_AUTH_TOKEN=
-GLOBAL_AUTH_ADDRESS=
-RPC=
-```
-
-## Chạy
-
-```bash
-npm start
-```
-
-Chạy nhiều ví song song:
-
-```bash
-WALLET_CONCURRENCY=2 npm start
-```
-
-Telegram report dùng env:
-
-```env
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
-```
-
-Fetch daily tasks từ API dùng:
+Fill `.env` with your own values. Do not commit `.env`, `.env.keys`, wallet keys, proxies, progress files, logs, or generated task caches.
 
 ```env
 GLOBAL_AUTH_TOKEN=
 GLOBAL_AUTH_ADDRESS=
 GLOBAL_PROXY=
+RPC=
+PRIVATE_KEYS=
+PROXIES=
+WALLET_CONCURRENCY=1
+DUMMY_TX_TOPUP_ONLY=0
 ```
 
-Nếu `GLOBAL_PROXY` trống, bot dùng proxy của ví đầu tiên. Nếu ví đầu tiên cũng không có proxy, bot gọi API qua local network.
+`PRIVATE_KEYS` and `PROXIES` accept comma-separated values or newline-separated values. Proxy entries may use host/port credentials or a full proxy URL. Use placeholders in docs and commit history only; keep real proxy hosts and credentials in local files.
 
-Cron chạy mỗi ngày trong khoảng 07:00-08:00 giờ Hà Nội:
+If you prefer local files instead of env variables:
 
-```cron
-CRON_TZ=Asia/Ho_Chi_Minh
-0 7 * * * /root/claude/overlayer-daily-tasks-modular/scripts/run-daily.sh
+- `pv.txt` contains one private key per line.
+- `prx.txt` contains one proxy entry per wallet line. Blank lines are allowed when a wallet should run without a proxy.
+- `proxy.txt` is still supported as a legacy fallback, but `prx.txt` is preferred.
+
+## Task Loading
+
+The bot first tries to fetch daily tasks from the Overlayer API when both values are configured:
+
+```env
+GLOBAL_AUTH_TOKEN=
+GLOBAL_AUTH_ADDRESS=
 ```
 
-Kiểm tra TypeScript:
+`GLOBAL_PROXY` is optional and is used only for the daily task API request. If it is empty, the bot falls back to the first wallet proxy; if that is also empty, the API request uses the local network.
+
+When API loading fails or auth is not configured, the bot reads `task-list.txt` as a local cache. That file is intentionally ignored by Git because it is runtime data.
+
+## Run
 
 ```bash
+npm start
+```
+
+Run without dotenvx:
+
+```bash
+npm run start:plain
+```
+
+Process multiple wallets at the same time:
+
+```bash
+WALLET_CONCURRENCY=2 npm start
+```
+
+Run only extra dummy transaction top-ups for wallets that already completed their daily tasks:
+
+```bash
+DUMMY_TX_TOPUP_ONLY=1 npm start
+```
+
+## Secret Handling
+
+Recommended dotenvx workflow:
+
+```bash
+npm run secrets:encrypt
+npm run secrets:decrypt
+```
+
+Keep `.env.keys` only on the machine that runs the bot. Do not push it to GitHub.
+
+The repository ignores these local runtime files:
+
+- `.env`
+- `.env.*` except `.env.example`
+- `.env.keys`
+- `pv.txt`
+- `prx.txt`
+- `proxy.txt`
+- `progress.json`
+- `task-list.txt`
+- `logs/`
+- `dist/`
+- `node_modules/`
+
+## Verification
+
+```bash
+npm test
 npm run typecheck
-```
-
-Build:
-
-```bash
 npm run build
 ```
 
-## File Không Commit
+## Public Repository Checklist
 
-Các file sau đã nằm trong `.gitignore`:
-
-- `pv.txt`
-- `proxy.txt`
-- `.env`
-- `.env.keys`
-- `progress.json`
-- `node_modules/`
+Before making a fork public, scan both the working tree and Git history for private keys, auth tokens, proxy hosts, proxy credentials, wallet progress, logs, and backup files. If any real secret ever reached Git history, rotate that secret before publishing.
