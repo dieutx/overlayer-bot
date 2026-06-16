@@ -1,6 +1,6 @@
 import { JsonRpcProvider, FetchRequest, Wallet, Contract, parseUnits, parseEther, formatEther, MaxUint256, hexlify, zeroPadValue } from "ethers";
 import { HttpsProxyAgent } from "https-proxy-agent";
-import { ADDR, ERC20_ABI, MINT_ABI, STAKE_ABI, FAUCET_ABI, OFT_ABI, LZ_DST_EID } from '../blockchain/contracts';
+import { ADDR, ERC20_ABI, MINT_ABI, STAKE_ABI, LIQUIDITY_POOL_ABI, FAUCET_ABI, OFT_ABI, LZ_DST_EID } from '../blockchain/contracts';
 import { DailyTask } from '../api/overlayerClient';
 import { calculateDummyTxCount, isDummyTxTopUpOnlyMode } from './dummyTxPlanner';
 import { formatProxyString, maskProxyString } from '../utils/proxy';
@@ -66,15 +66,20 @@ export async function runWalletTasks(
     
     // Summing required amounts
     const amounts = {
-        usdc: { mint: 0, stake: 0, bridge: 0, send: 0, receive: 0 },
-        usdt: { mint: 0, stake: 0, bridge: 0, send: 0, receive: 0 }
+        usdc: { mint: 0, stake: 0, bridge: 0, send: 0, receive: 0, liquidity: 0 },
+        usdt: { mint: 0, stake: 0, bridge: 0, send: 0, receive: 0, liquidity: 0 },
+        scplus: { liquidity: 0 },
+        stplus: { liquidity: 0 }
     };
     
     for (const t of pendingTasks) {
-        const p = t.product as 'usdc' | 'usdt';
-        const type = t.type as 'mint' | 'stake' | 'bridge' | 'send' | 'receive' | 'transaction';
-        if (p && amounts[p] && type in amounts[p]) {
-            amounts[p][type as 'mint'|'stake'|'bridge'|'send'|'receive'] = Math.max(amounts[p][type as 'mint'|'stake'|'bridge'|'send'|'receive'], (t.amount || 0));
+        const p = t.product as 'usdc' | 'usdt' | 'scplus' | 'stplus';
+        const type = t.type as 'mint' | 'stake' | 'bridge' | 'send' | 'receive' | 'liquidity' | 'transaction';
+        if ((p === 'usdc' || p === 'usdt') && type in amounts[p]) {
+            amounts[p][type as 'mint'|'stake'|'bridge'|'send'|'receive'|'liquidity'] = Math.max(amounts[p][type as 'mint'|'stake'|'bridge'|'send'|'receive'|'liquidity'], (t.amount || 0));
+        }
+        if ((p === 'scplus' || p === 'stplus') && type === 'liquidity') {
+            amounts[p].liquidity = Math.max(amounts[p].liquidity, (t.amount || 0));
         }
         if (type === 'transaction') {
             totalTargetTx = Math.max(totalTargetTx, (t.amount || 0));
@@ -82,10 +87,10 @@ export async function runWalletTasks(
     }
 
     // Calculate amounts with a 5% buffer to account for positive jitter in subsequent steps
-    const requiredUsdcForSubsequent = (amounts.usdc.stake + amounts.usdc.bridge + amounts.usdc.send + amounts.usdc.receive) * 1.05;
+    const requiredUsdcForSubsequent = (amounts.usdc.stake + amounts.usdc.bridge + amounts.usdc.send + amounts.usdc.receive + amounts.usdc.liquidity + amounts.scplus.liquidity) * 1.05;
     const baseUsdcMint = amounts.usdc.mint > 0 || requiredUsdcForSubsequent > 0 ? Math.ceil(Math.max(amounts.usdc.mint, requiredUsdcForSubsequent) + 10) : 0;
     
-    const requiredUsdtForSubsequent = (amounts.usdt.stake + amounts.usdt.bridge + amounts.usdt.send + amounts.usdt.receive) * 1.05;
+    const requiredUsdtForSubsequent = (amounts.usdt.stake + amounts.usdt.bridge + amounts.usdt.send + amounts.usdt.receive + amounts.usdt.liquidity + amounts.stplus.liquidity) * 1.05;
     const baseUsdtMint = amounts.usdt.mint > 0 || requiredUsdtForSubsequent > 0 ? Math.ceil(Math.max(amounts.usdt.mint, requiredUsdtForSubsequent) + 10) : 0;
 
     console.log(`\n${C.CYN}=== TASK INDEX ===${C.RST}`);
@@ -100,6 +105,7 @@ export async function runWalletTasks(
         console.log(`\n${C.CYN}Pending Action Amounts:${C.RST}`);
         if (baseUsdcMint > 0 || baseUsdtMint > 0) console.log(`- Mint: ${baseUsdcMint} USDC, ${baseUsdtMint} USDT`);
         if (amounts.usdc.stake > 0 || amounts.usdt.stake > 0) console.log(`- Stake: ${amounts.usdc.stake} USDC, ${amounts.usdt.stake} USDT`);
+        if (amounts.usdc.liquidity > 0 || amounts.usdt.liquidity > 0 || amounts.scplus.liquidity > 0 || amounts.stplus.liquidity > 0) console.log(`- Liquidity: ${amounts.usdc.liquidity} C+, ${amounts.usdt.liquidity} T+, ${amounts.scplus.liquidity} sC+, ${amounts.stplus.liquidity} sT+`);
         if (amounts.usdc.bridge > 0 || amounts.usdt.bridge > 0) console.log(`- Bridge: ${amounts.usdc.bridge} USDC, ${amounts.usdt.bridge} USDT`);
         if (amounts.usdc.send > 0 || amounts.usdt.send > 0) console.log(`- Send: ${amounts.usdc.send} USDC, ${amounts.usdt.send} USDT`);
         if (amounts.usdc.receive > 0 || amounts.usdt.receive > 0) console.log(`- Receive: ${amounts.usdc.receive} USDC, ${amounts.usdt.receive} USDT`);
@@ -124,17 +130,28 @@ export async function runWalletTasks(
     let usdt = new Contract(ADDR.USDT, ERC20_ABI, wallet);
 
     // Identify individual tasks
-    const usdcMintTask = pendingTasks.find(t => t.product === 'usdc' && t.type === 'mint');
-    const usdtMintTask = pendingTasks.find(t => t.product === 'usdt' && t.type === 'mint');
-    const usdcStakeTask = pendingTasks.find(t => t.product === 'usdc' && t.type === 'stake');
-    const usdtStakeTask = pendingTasks.find(t => t.product === 'usdt' && t.type === 'stake');
-    const usdcSendTask = pendingTasks.find(t => t.product === 'usdc' && t.type === 'send');
-    const usdtSendTask = pendingTasks.find(t => t.product === 'usdt' && t.type === 'send');
-    const usdcReceiveTask = pendingTasks.find(t => t.product === 'usdc' && t.type === 'receive');
-    const usdtReceiveTask = pendingTasks.find(t => t.product === 'usdt' && t.type === 'receive');
-    const usdcBridgeTask = pendingTasks.find(t => t.product === 'usdc' && t.type === 'bridge');
-    const usdtBridgeTask = pendingTasks.find(t => t.product === 'usdt' && t.type === 'bridge');
+    const usdcMintTasks = pendingTasks.filter(t => t.product === 'usdc' && t.type === 'mint');
+    const usdtMintTasks = pendingTasks.filter(t => t.product === 'usdt' && t.type === 'mint');
+    const usdcStakeTasks = pendingTasks.filter(t => t.product === 'usdc' && t.type === 'stake');
+    const usdtStakeTasks = pendingTasks.filter(t => t.product === 'usdt' && t.type === 'stake');
+    const usdcSendTasks = pendingTasks.filter(t => t.product === 'usdc' && t.type === 'send');
+    const usdtSendTasks = pendingTasks.filter(t => t.product === 'usdt' && t.type === 'send');
+    const usdcReceiveTasks = pendingTasks.filter(t => t.product === 'usdc' && t.type === 'receive');
+    const usdtReceiveTasks = pendingTasks.filter(t => t.product === 'usdt' && t.type === 'receive');
+    const usdcBridgeTasks = pendingTasks.filter(t => t.product === 'usdc' && t.type === 'bridge');
+    const usdtBridgeTasks = pendingTasks.filter(t => t.product === 'usdt' && t.type === 'bridge');
+    const usdcLiquidityTasks = pendingTasks.filter(t => t.product === 'usdc' && t.type === 'liquidity');
+    const usdtLiquidityTasks = pendingTasks.filter(t => t.product === 'usdt' && t.type === 'liquidity');
+    const scPlusLiquidityTasks = pendingTasks.filter(t => t.product === 'scplus' && t.type === 'liquidity');
+    const stPlusLiquidityTasks = pendingTasks.filter(t => t.product === 'stplus' && t.type === 'liquidity');
     const dummyTask = pendingTasks.find(t => t.type === 'transaction');
+
+    function markTasksCompleted(tasksToMark: DailyTask[]) {
+        for (const task of tasksToMark) {
+            completedThisRun.push(task.id);
+            if (onTaskCompleted) onTaskCompleted(task.id);
+        }
+    }
 
     function rotateProxy() {
         if (allProxies.length === 0) return;
@@ -237,6 +254,15 @@ export async function runWalletTasks(
         await randomSleep(2000, 5000);
     }
 
+    async function provideSingleTokenLiquidity(tokenAddr: string, poolAddr: string, pid: number, amount: bigint, label: string) {
+        await doApproveInner(tokenAddr, poolAddr, amount, `${label} liquidity pool`);
+        const pool = new Contract(poolAddr, LIQUIDITY_POOL_ABI, wallet);
+        console.log(`${C.CYN}Providing ${label} liquidity into pool ${poolAddr.slice(0, 8)}...${C.RST}`);
+        const tx = await runWithProxyRetry(() => pool.deposit(pid, amount));
+        await runWithProxyRetry(() => tx.wait()); txCount++;
+        console.log(`${C.GRN}✅ ${label} liquidity provided${C.RST}`);
+    }
+
     try {
         const ethBal = await runWithProxyRetry(() => provider.getBalance(addr));
         console.log(`ETH Balance: ${formatEther(ethBal)}`);
@@ -270,10 +296,7 @@ export async function runWalletTasks(
                     const tx = await runWithProxyRetry(() => cPlus.mint([addr, addr, ADDR.USDC, parseUnits(amt, 6), parseUnits(amt, 18)]));
                     await runWithProxyRetry(() => tx.wait()); txCount++;
                     console.log(`${C.GRN}✅ C+ minted${C.RST}`);
-                    if (usdcMintTask) {
-                        completedThisRun.push(usdcMintTask.id);
-                        if (onTaskCompleted) onTaskCompleted(usdcMintTask.id);
-                    }
+                    markTasksCompleted(usdcMintTasks);
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
                     console.error(`${C.RED}❌ Error minting C+: ${errorMessage(e)}${C.RST}`);
@@ -291,10 +314,7 @@ export async function runWalletTasks(
                     const tx = await runWithProxyRetry(() => tPlus.mint([addr, addr, ADDR.USDT, parseUnits(amt, 6), parseUnits(amt, 18)]));
                     await runWithProxyRetry(() => tx.wait()); txCount++;
                     console.log(`${C.GRN}✅ T+ minted${C.RST}`);
-                    if (usdtMintTask) {
-                        completedThisRun.push(usdtMintTask.id);
-                        if (onTaskCompleted) onTaskCompleted(usdtMintTask.id);
-                    }
+                    markTasksCompleted(usdtMintTasks);
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
                     console.error(`${C.RED}❌ Error minting T+: ${errorMessage(e)}${C.RST}`);
@@ -321,10 +341,7 @@ export async function runWalletTasks(
                     const tx = await runWithProxyRetry(() => scPlus.deposit(stakeAmt, addr));
                     await runWithProxyRetry(() => tx.wait()); txCount++;
                     console.log(`${C.GRN}✅ C+ staked${C.RST}`);
-                    if (usdcStakeTask) {
-                        completedThisRun.push(usdcStakeTask.id);
-                        if (onTaskCompleted) onTaskCompleted(usdcStakeTask.id);
-                    }
+                    markTasksCompleted(usdcStakeTasks);
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
                     console.error(`${C.RED}❌ Error staking C+: ${errorMessage(e)}${C.RST}`);
@@ -343,10 +360,7 @@ export async function runWalletTasks(
                     const tx = await runWithProxyRetry(() => stPlus.deposit(stakeAmt, addr));
                     await runWithProxyRetry(() => tx.wait()); txCount++;
                     console.log(`${C.GRN}✅ T+ staked${C.RST}`);
-                    if (usdtStakeTask) {
-                        completedThisRun.push(usdtStakeTask.id);
-                        if (onTaskCompleted) onTaskCompleted(usdtStakeTask.id);
-                    }
+                    markTasksCompleted(usdtStakeTasks);
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
                     console.error(`${C.RED}❌ Error staking T+: ${errorMessage(e)}${C.RST}`);
@@ -365,10 +379,7 @@ export async function runWalletTasks(
                     const tx = await runWithProxyRetry(() => cPlus.transfer(randomBurnAddr, sendAmt));
                     await runWithProxyRetry(() => tx.wait()); txCount++;
                     console.log(`${C.GRN}✅ C+ sent (Sybil Graph Broken)${C.RST}`);
-                    if (usdcSendTask) {
-                        completedThisRun.push(usdcSendTask.id);
-                        if (onTaskCompleted) onTaskCompleted(usdcSendTask.id);
-                    }
+                    markTasksCompleted(usdcSendTasks);
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
                     console.error(`${C.RED}❌ Error sending C+: ${errorMessage(e)}${C.RST}`);
@@ -387,10 +398,7 @@ export async function runWalletTasks(
                     const tx = await runWithProxyRetry(() => tPlus.transfer(randomBurnAddr, sendAmt));
                     await runWithProxyRetry(() => tx.wait()); txCount++;
                     console.log(`${C.GRN}✅ T+ sent (Sybil Graph Broken)${C.RST}`);
-                    if (usdtSendTask) {
-                        completedThisRun.push(usdtSendTask.id);
-                        if (onTaskCompleted) onTaskCompleted(usdtSendTask.id);
-                    }
+                    markTasksCompleted(usdtSendTasks);
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
                     console.error(`${C.RED}❌ Error sending T+: ${errorMessage(e)}${C.RST}`);
@@ -451,10 +459,7 @@ export async function runWalletTasks(
                         console.log(`${C.YLW}⚠️ Failed to return leftover ETH from burner: ${errorMessage(ethErr)}${C.RST}`);
                     }
                     
-                    if (usdcReceiveTask) {
-                        completedThisRun.push(usdcReceiveTask.id);
-                        if (onTaskCompleted) onTaskCompleted(usdcReceiveTask.id);
-                    }
+                    markTasksCompleted(usdcReceiveTasks);
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
                     console.error(`${C.RED}❌ Error receiving C+: ${errorMessage(e)}${C.RST}`);
@@ -515,10 +520,7 @@ export async function runWalletTasks(
                         console.log(`${C.YLW}⚠️ Failed to return leftover ETH from burner: ${errorMessage(ethErr)}${C.RST}`);
                     }
                     
-                    if (usdtReceiveTask) {
-                        completedThisRun.push(usdtReceiveTask.id);
-                        if (onTaskCompleted) onTaskCompleted(usdtReceiveTask.id);
-                    }
+                    markTasksCompleted(usdtReceiveTasks);
                     await randomSleep(2000, 5000);
                 } catch (e: any) {
                     console.error(`${C.RED}❌ Error receiving T+: ${errorMessage(e)}${C.RST}`);
@@ -526,7 +528,77 @@ export async function runWalletTasks(
             });
         }
 
-        // 9. BRIDGE C+
+        // 9. PROVIDE C+ LIQUIDITY
+        if (amounts.usdc.liquidity > 0) {
+            actionSteps.push(async () => {
+                try {
+                    const amt = randomJitterAmount(amounts.usdc.liquidity, 2);
+                    const liquidityAmt = parseUnits(amt, 18);
+                    await provideSingleTokenLiquidity(ADDR.C_PLUS, ADDR.C_PLUS_LP_POOL, 0, liquidityAmt, `${amt} C+`);
+                    markTasksCompleted(usdcLiquidityTasks);
+                    await randomSleep(2000, 5000);
+                } catch (e: any) {
+                    console.error(`${C.RED}❌ Error providing C+ liquidity: ${errorMessage(e)}${C.RST}`);
+                }
+            });
+        }
+
+        // 10. PROVIDE T+ LIQUIDITY
+        if (amounts.usdt.liquidity > 0) {
+            actionSteps.push(async () => {
+                try {
+                    const amt = randomJitterAmount(amounts.usdt.liquidity, 2);
+                    const liquidityAmt = parseUnits(amt, 18);
+                    await provideSingleTokenLiquidity(ADDR.T_PLUS, ADDR.T_PLUS_LP_POOL, 0, liquidityAmt, `${amt} T+`);
+                    markTasksCompleted(usdtLiquidityTasks);
+                    await randomSleep(2000, 5000);
+                } catch (e: any) {
+                    console.error(`${C.RED}❌ Error providing T+ liquidity: ${errorMessage(e)}${C.RST}`);
+                }
+            });
+        }
+
+        // 11. PROVIDE sC+ LIQUIDITY (stake C+ first to mint sC+)
+        if (amounts.scplus.liquidity > 0) {
+            actionSteps.push(async () => {
+                try {
+                    const amt = randomJitterAmount(amounts.scplus.liquidity, 2);
+                    const liquidityAmt = parseUnits(amt, 18);
+                    await doApproveInner(ADDR.C_PLUS, ADDR.SC_PLUS, liquidityAmt, 'C+ to sC+ for liquidity');
+                    console.log(`${C.CYN}Staking ${amt} C+ to mint sC+ for liquidity...${C.RST}`);
+                    let tx = await runWithProxyRetry(() => scPlus.deposit(liquidityAmt, addr));
+                    await runWithProxyRetry(() => tx.wait()); txCount++;
+                    await randomSleep(2000, 5000);
+                    await provideSingleTokenLiquidity(ADDR.SC_PLUS, ADDR.SC_PLUS_LP_POOL, 0, liquidityAmt, `${amt} sC+`);
+                    markTasksCompleted(scPlusLiquidityTasks);
+                    await randomSleep(2000, 5000);
+                } catch (e: any) {
+                    console.error(`${C.RED}❌ Error providing sC+ liquidity: ${errorMessage(e)}${C.RST}`);
+                }
+            });
+        }
+
+        // 12. PROVIDE sT+ LIQUIDITY (stake T+ first to mint sT+)
+        if (amounts.stplus.liquidity > 0) {
+            actionSteps.push(async () => {
+                try {
+                    const amt = randomJitterAmount(amounts.stplus.liquidity, 2);
+                    const liquidityAmt = parseUnits(amt, 18);
+                    await doApproveInner(ADDR.T_PLUS, ADDR.ST_PLUS, liquidityAmt, 'T+ to sT+ for liquidity');
+                    console.log(`${C.CYN}Staking ${amt} T+ to mint sT+ for liquidity...${C.RST}`);
+                    let tx = await runWithProxyRetry(() => stPlus.deposit(liquidityAmt, addr));
+                    await runWithProxyRetry(() => tx.wait()); txCount++;
+                    await randomSleep(2000, 5000);
+                    await provideSingleTokenLiquidity(ADDR.ST_PLUS, ADDR.ST_PLUS_LP_POOL, 0, liquidityAmt, `${amt} sT+`);
+                    markTasksCompleted(stPlusLiquidityTasks);
+                    await randomSleep(2000, 5000);
+                } catch (e: any) {
+                    console.error(`${C.RED}❌ Error providing sT+ liquidity: ${errorMessage(e)}${C.RST}`);
+                }
+            });
+        }
+
+        // 13. BRIDGE C+
         if (amounts.usdc.bridge > 0) {
             actionSteps.push(async () => {
                 try {
@@ -546,10 +618,7 @@ export async function runWalletTasks(
                     const tx = await runWithProxyRetry(() => oft.send(sendParam, [fee.nativeFee, 0n], addr, { value: fee.nativeFee }));
                     await runWithProxyRetry(() => tx.wait()); txCount++;
                     console.log(`${C.GRN}✅ Bridged C+${C.RST}`);
-                    if (usdcBridgeTask) {
-                        completedThisRun.push(usdcBridgeTask.id);
-                        if (onTaskCompleted) onTaskCompleted(usdcBridgeTask.id);
-                    }
+                    markTasksCompleted(usdcBridgeTasks);
                 } catch(e: any) { 
                     console.log(`${C.RED}⚠️ C+ Bridge failed: ${errorMessage(e, 100)}${C.RST}`); 
                 }
@@ -577,10 +646,7 @@ export async function runWalletTasks(
                     const tx = await runWithProxyRetry(() => oft.send(sendParam, [fee.nativeFee, 0n], addr, { value: fee.nativeFee }));
                     await runWithProxyRetry(() => tx.wait()); txCount++;
                     console.log(`${C.GRN}✅ Bridged T+${C.RST}`);
-                    if (usdtBridgeTask) {
-                        completedThisRun.push(usdtBridgeTask.id);
-                        if (onTaskCompleted) onTaskCompleted(usdtBridgeTask.id);
-                    }
+                    markTasksCompleted(usdtBridgeTasks);
                 } catch(e: any) { 
                     console.log(`${C.RED}⚠️ T+ Bridge failed: ${errorMessage(e, 100)}${C.RST}`); 
                 }

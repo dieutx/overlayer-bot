@@ -7,6 +7,10 @@ export const ADDR = {
     T_PLUS: '0xe20534a32f9162488a90026F268a74fBE28d272D',
     SC_PLUS: '0x753937137Eb92871A6F3517514d4f1Ee860e3FDF',
     ST_PLUS: '0x079a4Bf1Cbd0E4ce15391340cB46efA6396aBc82',
+    C_PLUS_LP_POOL: '0x7C493D7b7bA0B281fb4Bb29d26Fa9E1754D0Bd1A',
+    T_PLUS_LP_POOL: '0xDa11726d1d66c8c5c7224529f7be58f22b808952',
+    SC_PLUS_LP_POOL: '0x88Fe18C721c9380f80592Cb1496C50C7Ea97ABeB',
+    ST_PLUS_LP_POOL: '0xc68fFFBfEC83a27Eae65DAe27BD6D6147cB3d765',
     AAVE_FAUCET: '0xC959483DBa39aa9E78757139af0e9a2EDEb3f42D'
 };
 
@@ -26,6 +30,12 @@ export const MINT_ABI: InterfaceAbi = [
 
 export const STAKE_ABI: InterfaceAbi = [
     'function deposit(uint256 assets, address receiver) returns (uint256)'
+];
+
+export const LIQUIDITY_POOL_ABI: InterfaceAbi = [
+    'function deposit(uint256 pid, uint256 amount)',
+    'function poolInfo(uint256 pid) view returns (address lpToken, uint256 allocPoint, uint256 lastRewardTime, uint256 accRewardPerShare)',
+    'function userInfo(uint256 pid, address user) view returns (uint256 amount, uint256 rewardDebt)'
 ];
 
 export const FAUCET_ABI: InterfaceAbi = [
