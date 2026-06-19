@@ -13,4 +13,7 @@ logs/
 task-list.txt
 scripts/run-daily.sh
 scripts/send-telegram-report.js
+scripts/run-20*.ts
+scripts/retry-20*.ts
 *.backup-*
+*.bak-*

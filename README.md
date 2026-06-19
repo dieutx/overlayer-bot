@@ -124,6 +124,8 @@ The repository ignores these local runtime files:
 - `logs/`
 - `dist/`
 - `node_modules/`
+- dated local run/retry scripts under `scripts/`
+- runtime snapshots matching `*.backup-*` or `*.bak-*`
 
 ## Verification
 
